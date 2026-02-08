@@ -1,0 +1,20 @@
+
+BasedOnStyle: Microsoft
+IndentWidth: 4
+---
+Language: C
+DerivePointerAlignment: false
+PointerAlignment: Left
+AccessModifierOffset: -4
+IndentExternBlock: NoIndent
+AlignEscapedNewlines: DontAlign
+---
+Language: Cpp
+DerivePointerAlignment: false
+PointerAlignment: Left
+AccessModifierOffset: -4
+IndentExternBlock: NoIndent
+AlignEscapedNewlines: DontAlign
+AlwaysBreakTemplateDeclarations: Yes
+IndentRequires: true
+---
