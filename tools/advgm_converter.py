@@ -24,13 +24,8 @@ class VgmFile:
             raise VgmFormatError("not use Game Boy")
 
         # convert reg
-        p = 0xC0
+        p = 0x34 + int.from_bytes(data[0x34:0x38], byteorder="little")
         while data[p] != 0x66:  # end of mark
-            # ignore 0x00
-            if data[p] == 0x00:
-                p += 1
-                continue
-
             # wait: 0x61 nn nn
             if data[p] == 0x61:
                 p += 3
@@ -146,7 +141,7 @@ class VgmFile:
 
         print(f"VgmLoopOffset: 0x{loop_vgm:02x}")
 
-        p = 0xC0
+        p = 0x34 + int.from_bytes(data[0x34:0x38], byteorder="little")
         fputc_cnt = 0
 
         while data[p] != 0x66:  # end of mark
@@ -156,11 +151,6 @@ class VgmFile:
 
                 loop_bin = fputc_cnt
                 is_loop = True
-
-            # ignore 0x00
-            if data[p] == 0x00:
-                p += 1
-                continue
 
             # wait: 0x61 nn nn
             if 0x61 <= data[p] <= 0x63 or 0x70 <= data[p] <= 0x7F:
