@@ -91,6 +91,13 @@ class VgmFile:
 
                 dat = data[p + 1]
 
+                # hugeTracker generates VGMs that has incorrect `0xFF` writes for NR 30,
+                # which messes up the Ch3 bank bits on the GBA.
+                #
+                # This hack fixes this issue so that hugeTracker VGMs can be played correctly.
+                if adr == 0x70 and dat == 0xFF:
+                    dat = 0x80
+
                 data[p] = adr
                 p += 1
                 data[p] = dat
