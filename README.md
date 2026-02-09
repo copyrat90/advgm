@@ -38,6 +38,17 @@
 See [`include/advgm.h`](include/advgm.h) for the API.
 
 
+## Limitations
+
+There are some limitations, mostly due to the hardware restrictions.
+
+* `Instrument > Use software envelop` doesn't work.
+* `Base Tempo` must be always `150` (= `Tick Rate` must be `60`).
+   * You can use `Virtual Tempo` if you want different tempo,
+     but note that it doesn't always evenly divide the rows, and the arpeggios might sound funky.
+   * Obviously, effects that alters the tick rate is not supported either (`Cxxx` and `F0xx`).
+
+
 ## License
 
 This project is licensed under the [BSD Zero Clause License](LICENSE).
