@@ -91,15 +91,6 @@ class VgmFile:
 
                 dat = data[p + 1]
 
-                if adr == 0x70:  # NR 30
-                    dat = dat & 0x80
-                if adr == 0x73:  # NR 32
-                    dat = dat & 0x60
-                if adr == 0x80 and dat & 0x08 != 0:  # NR 50
-                    print("Warning: no use GBA bit. NR 50(FF24) Right Flag.")
-                if adr == 0x80 and dat & 0x80 != 0:  # NR 50
-                    print("Warning: no use GBA bit. NR 50(FF24) Left Flag.")
-
                 data[p] = adr
                 p += 1
                 data[p] = dat
