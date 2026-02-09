@@ -166,16 +166,6 @@ class VgmFile:
 
             # write reg: 0xb3 aa dd
             if data[p] == 0xB3:
-                d2 = data[p + 1]
-
-                # GBA patch
-
-                # wave adr?
-                if 0x90 <= d2 <= 0x9F:
-                    # add REG_SOUND3CNT_L = 0x40;
-                    converted += b"\xb3\x70\x40"
-                    fputc_cnt += 3
-
                 converted += data[p : p + 3]
                 p += 3
                 fputc_cnt += 3

@@ -59,8 +59,28 @@ bool advgm_vblank_callback(void)
 
         case ADVGM_MUSIC_CMD_WRITE_REG: {
             const uint8_t offset = *player.next_fetch_pos++;
-            const uint8_t data = *player.next_fetch_pos++;
+            uint8_t data = *player.next_fetch_pos++;
+
+            // Ignore Ch3 bank switching done by music commands
+            if (offset == ADVGM_OFFSET_SND3SEL)
+            {
+                const uint8_t prev_bank = ADVGM_SND3SEL_BANK_GET(ADVGM_REG_SND3SEL);
+                const uint8_t non_bank_mask = ~ADVGM_SND3SEL_BANK_SET(1);
+
+                data = (data & non_bank_mask) | ADVGM_SND3SEL_BANK_SET(prev_bank);
+            }
+
             ADVGM_REG_8(offset) = data;
+
+            // Automatically switch Ch3 bank after writing final byte of `WAVE_RAM`.
+            if (offset == ADVGM_OFFSET_WAVE_RAM3_H + 1)
+            {
+                const uint8_t prev_bank = ADVGM_SND3SEL_BANK_GET(ADVGM_REG_SND3SEL);
+                const uint8_t next_bank = (prev_bank == 0) ? 1 : 0;
+                const uint8_t non_bank_mask = ~ADVGM_SND3SEL_BANK_SET(1);
+
+                ADVGM_REG_SND3SEL = (ADVGM_REG_SND3SEL & non_bank_mask) | ADVGM_SND3SEL_BANK_SET(next_bank);
+            }
 
             continue;
         }
