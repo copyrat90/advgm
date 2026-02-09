@@ -126,7 +126,8 @@ void advgm_stop(void)
     player.playing = false;
     player.paused = false;
 
-    ADVGM_REG_SNDSTAT = ADVGM_SNDSTAT_MASTER_DISABLE;
+    // `SNDSTAT_MASTER` must be enabled before touching anything
+    ADVGM_REG_SNDSTAT = ADVGM_SNDSTAT_MASTER_ENABLE;
 
     // Channel 1
     ADVGM_REG_SND1SWEEP = ADVGM_SND1SWEEP_SWEEP_TIME_SET(0);
@@ -157,7 +158,6 @@ void advgm_stop(void)
                           ADVGM_SNDDMGCNT_PSG_2_ENABLE_LEFT | ADVGM_SNDDMGCNT_PSG_2_ENABLE_RIGHT |
                           ADVGM_SNDDMGCNT_PSG_3_ENABLE_LEFT | ADVGM_SNDDMGCNT_PSG_3_ENABLE_RIGHT |
                           ADVGM_SNDDMGCNT_PSG_4_ENABLE_LEFT | ADVGM_SNDDMGCNT_PSG_4_ENABLE_RIGHT;
-    ADVGM_REG_SNDSTAT = ADVGM_SNDSTAT_MASTER_ENABLE;
 }
 
 void advgm_pause(void)
