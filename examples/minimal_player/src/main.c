@@ -17,11 +17,15 @@ int main(void)
     irq_add(II_VBLANK, my_vblank_callback);
     irq_enable(II_VBLANK);
 
+    VBlankIntrWait();
+
     advgm_set_master_volume(ADVGM_MASTER_VOLUME_FULL);
     advgm_play(my_music, true);
 
     for (;;)
     {
+        VBlankIntrWait();
+
         key_poll();
 
         if (key_hit(1 << KI_A))
@@ -61,7 +65,5 @@ int main(void)
                 break;
             }
         }
-
-        VBlankIntrWait();
     }
 }
