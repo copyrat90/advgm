@@ -30,7 +30,7 @@ typedef struct advgm_player_t
 
 } advgm_player;
 
-ADVGM_EWRAM_DATA static advgm_player player;
+ADVGM_EWRAM_BSS static advgm_player player;
 
 void advgm_set_master_volume(advgm_master_volume master_volume)
 {
