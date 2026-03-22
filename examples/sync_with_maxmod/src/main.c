@@ -29,10 +29,14 @@ int main(void)
 
     for (;;)
     {
+        VBlankIntrWait();
+
         mmFrame();
 
-        redraw_music_position_texts();
+        key_poll();
+        if (key_hit(KEY_A))
+            sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
 
-        VBlankIntrWait();
+        redraw_music_position_texts();
     }
 }

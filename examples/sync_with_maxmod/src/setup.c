@@ -56,8 +56,8 @@ void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
     MEMORY_BARRIER;
 
     // To align the advgm playback with Maxmod's,
-    // you need to start the advgm playback on the first vblank callback after the Maxmod playback has been started.
-    play_states.vblank_delay_before_advgm_play = 1;
+    // you need to start the advgm playback on the *second* vblank callback after the Maxmod playback has been started.
+    play_states.vblank_delay_before_advgm_play = 2;
 
     play_states.loop = loop;
 
@@ -65,11 +65,13 @@ void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
 
     // Starts the playback.
     //
-    // Note that the timer1 is not started yet, that's done in the first vblank callback.
+    // Note that the timer1 is not started yet, that's done in the *second* vblank callback.
     // Until then, advgm playback is never updated.
     advgm_play(advgm_music, loop);
     mmStart(maxmod_module_id, loop ? MM_PLAY_LOOP : MM_PLAY_ONCE);
 }
+
+static void timer1_interrupt_handler(void);
 
 static void vblank_interrupt_handler(void)
 {
@@ -77,7 +79,7 @@ static void vblank_interrupt_handler(void)
     if (!mmActive())
         return;
 
-    // Delaying the `advgm_play()` call until the first vblank.
+    // Delaying the `advgm_play()` call until the *second* vblank.
     if (play_states.vblank_delay_before_advgm_play == 0)
         return;
     if (--play_states.vblank_delay_before_advgm_play != 0)
@@ -118,10 +120,10 @@ static void vblank_interrupt_handler(void)
 
     play_states.tm_data = (uint16_t)timer_quotient;
     play_states.timer_remainder = timer_remainder;
-    play_states.timer_accumulator = timer_remainder;
+    play_states.timer_accumulator = 0;
 
-    // Start the timer1
-    REG_TM1D = -play_states.tm_data;
+    // Update the playback for the first time, and start the timer1
+    timer1_interrupt_handler();
     REG_TM1CNT = TM_FREQ_64 | TM_IRQ | TM_ENABLE;
 }
 
