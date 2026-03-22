@@ -28,7 +28,7 @@ int main(void)
 
         key_poll();
 
-        if (key_hit(1 << KI_A))
+        if (key_hit(KEY_A))
         {
             if (advgm_playing())
             {
@@ -41,12 +41,12 @@ int main(void)
                 advgm_play(my_music, true);
         }
 
-        if (key_hit(1 << KI_B))
+        if (key_hit(KEY_B))
         {
             advgm_stop();
         }
 
-        if (key_hit(1 << KI_START))
+        if (key_hit(KEY_START))
         {
             const advgm_master_volume previous_master_volume = advgm_get_master_volume();
 
