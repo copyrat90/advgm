@@ -33,7 +33,7 @@
 
 1. Add the converted music binary/source to your project, and pass a pointer of it to the [`advgm_play()`](include/advgm.h#L45).
 
-1. Add [`advgm_vblank_callback()`](include/advgm.h#L40) call in your vblank callback handler.
+1. Call [`advgm_update()`](include/advgm.h#L40) every frame (for example, in VBlank ISR).
 
 See [`include/advgm.h`](include/advgm.h) for the API.
 

@@ -7,7 +7,7 @@ static const unsigned char* my_music = hell_owo_rld;
 
 void my_vblank_callback()
 {
-    bool success = advgm_vblank_callback();
+    bool success = advgm_update();
     ((void)success);
 }
 
