@@ -1,0 +1,3 @@
+[submodule "examples/sync_with_maxmod/maxmod"]
+	path = examples/sync_with_maxmod/maxmod
+	url = https://codeberg.org/blocksds/maxmod.git
