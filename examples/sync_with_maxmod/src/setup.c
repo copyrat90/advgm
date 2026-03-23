@@ -26,7 +26,8 @@ static EWRAM_BSS struct synced_play_states
     bool playing;
     bool loop;
 
-    bool timer_started;
+    bool vblank_handled;
+    bool advgm_updated;
 
     // Base timer value (quotient of cycles/64)
     uint16_t tm_data;
@@ -59,7 +60,8 @@ void sync_stop(void)
 
     play_states.vblank_delay_counter = 0;
     play_states.vblank_delay_needed = 0;
-    play_states.timer_started = false;
+    play_states.vblank_handled = false;
+    play_states.advgm_updated = false;
     play_states.playing = false;
 }
 
@@ -68,22 +70,19 @@ void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
     sync_stop();
 
     MEMORY_BARRIER;
-
-    // To align the advgm playback with Maxmod's,
-    // you need to start the advgm playback on the *second* vblank callback after the Maxmod playback has been started.
-    play_states.vblank_delay_needed = 0;
-
     play_states.loop = loop;
-    play_states.playing = true;
-
     MEMORY_BARRIER;
 
     // Starts the playback.
     //
-    // Note that the timer1 is not started yet, that's done in the *second* vblank callback.
+    // Note that the timer1 is not started yet, that's done in the delayed vblank callback.
     // Until then, advgm playback is never updated.
     advgm_play(advgm_music, loop);
     mmStart(maxmod_module_id, loop ? MM_PLAY_LOOP : MM_PLAY_ONCE);
+
+    MEMORY_BARRIER;
+    play_states.playing = true;
+    MEMORY_BARRIER;
 
     // Calculate the additional delay.
     //
@@ -133,7 +132,7 @@ static void vblank_interrupt_handler(void)
         return;
 
     // Skips if already started the advgm update.
-    if (play_states.timer_started)
+    if (play_states.vblank_handled)
         return;
 
     // Skips if enough vblank has been passed or not.
@@ -148,7 +147,8 @@ static void vblank_interrupt_handler(void)
 
     // Enough vblank waited, we'll now start the timer
     // (i.e. start the advgm update)
-    play_states.timer_started = true;
+    play_states.vblank_handled = true;
+    MEMORY_BARRIER;
 
     // Reverse the Maxmod sample count calculation to obtain the tempo.
     //
@@ -198,9 +198,12 @@ static void vblank_interrupt_handler(void)
 
     // Additionally delay the playback considering Maxmod first delay.
     if (timer_quotient != 0)
-        REG_TM1D = -timer_quotient;
+        REG_TM1D = -(uint16_t)timer_quotient;
     else
+    {
+        play_states.advgm_updated = true;
         timer1_interrupt_handler();
+    }
 
     // Start the advgm timer.
     REG_TM1CNT = TM_FREQ_64 | TM_IRQ | TM_ENABLE;
@@ -208,10 +211,6 @@ static void vblank_interrupt_handler(void)
 
 static void timer1_interrupt_handler(void)
 {
-    // Update advgm playback first
-    const bool success = advgm_update();
-    ((void)success);
-
     // Accumulate the sub-tick of the 64Hz timer
     play_states.timer_accumulator += play_states.timer_remainder;
 
@@ -227,6 +226,21 @@ static void timer1_interrupt_handler(void)
     {
         REG_TM1D = -play_states.tm_data;
     }
+
+    // If this was the first time advgm updated,
+    // the timer must be using old delay value, which is invalid now.
+    if (!play_states.advgm_updated)
+    {
+        play_states.advgm_updated = true;
+
+        // Restart the timer to use `tm_data` instead of first additional delay.
+        REG_TM1CNT = 0;
+        REG_TM1CNT = TM_FREQ_64 | TM_IRQ | TM_ENABLE;
+    }
+
+    // Update advgm playback last, for the restarted timer accuracy.
+    const bool success = advgm_update();
+    ((void)success);
 }
 
 void setup_advgm(void)
