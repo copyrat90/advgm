@@ -136,10 +136,6 @@ static void vblank_interrupt_handler(void)
     if (play_states.timer_started)
         return;
 
-    // Wait for the Maxmod playback to be started.
-    if (!mmActive())
-        return;
-
     // Skips if enough vblank has been passed or not.
     //
     // `vblank_delay_needed` might not be already set to valid value,
