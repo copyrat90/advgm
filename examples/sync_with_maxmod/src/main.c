@@ -18,11 +18,11 @@ int main(void)
     setup_gfx();
     draw_static_texts();
 
+    setup_irq();
+
     if (!setup_maxmod())
         draw_init_error_and_exit();
     setup_advgm();
-
-    setup_irq();
 
     VBlankIntrWait();
 
