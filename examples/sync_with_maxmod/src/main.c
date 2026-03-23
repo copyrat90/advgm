@@ -19,6 +19,7 @@ int main(void)
     draw_static_texts();
 
     setup_irq();
+    VBlankIntrWait();
 
     if (!setup_maxmod())
         draw_init_error_and_exit();
