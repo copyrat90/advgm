@@ -15,7 +15,7 @@ extern mpl_layer_information mmLayerMain;
 
 #define MEMORY_BARRIER asm volatile("" ::: "memory")
 
-#define MAXMOD_CHANNELS_COUNT 8
+#define MAXMOD_CHANNELS_COUNT 16
 #define MAXMOD_MIX_MODE MM_MIX_31KHZ
 #define MAXMOD_MIX_LEN MM_MIXLEN_31KHZ
 
