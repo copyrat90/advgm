@@ -27,6 +27,7 @@ int main(void)
     VBlankIntrWait();
 
     sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
+    unsigned elapsed_frames = 0;
 
     for (;;)
     {
@@ -37,8 +38,12 @@ int main(void)
         // Restart on A press
         key_poll();
         if (key_hit(KEY_A))
+        {
+            elapsed_frames = 0;
             sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
+        }
 
         redraw_music_position_texts();
+        redraw_elapsed_frames(elapsed_frames++);
     }
 }

@@ -7,13 +7,21 @@
 
 #include <tonc.h>
 
+#define TEXTS_FRAME_X 60
+#define TEXTS_FRAME_Y 10
+
 #define TEXTS_LEFT_X 20
 #define TEXTS_TAB_X 70
-#define TEXTS_TOP_Y 30
+#define TEXTS_TOP_Y 40
 #define TEXTS_LINE_HEIGHT 13
+
+#define TEXT_HEIGHT 10
 
 void draw_static_texts(void)
 {
+    tte_set_pos(TEXTS_LEFT_X, TEXTS_FRAME_Y);
+    tte_write("frames:");
+
     tte_set_pos(TEXTS_TAB_X, TEXTS_TOP_Y);
     tte_write("PSG: advgm w/ timer1 ISR");
 
@@ -40,9 +48,9 @@ void redraw_music_position_texts(void)
     {
         const uint32_t advgm_offset = advgm_get_music_offset();
 
-        tte_erase_rect(TEXTS_LEFT_X, TEXTS_TOP_Y, TEXTS_TAB_X, TEXTS_TOP_Y + 1 * TEXTS_LINE_HEIGHT);
+        tte_erase_rect(TEXTS_LEFT_X, TEXTS_TOP_Y, TEXTS_TAB_X, TEXTS_TOP_Y + TEXT_HEIGHT);
         tte_erase_rect(TEXTS_LEFT_X, TEXTS_TOP_Y + 2 * TEXTS_LINE_HEIGHT, TEXTS_TAB_X,
-                       TEXTS_TOP_Y + 3 * TEXTS_LINE_HEIGHT);
+                       TEXTS_TOP_Y + 2 * TEXTS_LINE_HEIGHT + TEXT_HEIGHT);
 
         char text[12];
 
@@ -56,6 +64,17 @@ void redraw_music_position_texts(void)
 
         prev_maxmod_position = new_maxmod_position;
     }
+}
+
+void redraw_elapsed_frames(unsigned elapsed_frames)
+{
+    tte_erase_rect(TEXTS_FRAME_X, TEXTS_FRAME_Y, TEXTS_FRAME_X + 60, TEXTS_FRAME_Y + TEXT_HEIGHT);
+
+    char text[12];
+
+    posprintf(text, "%l", elapsed_frames);
+    tte_set_pos(TEXTS_FRAME_X, TEXTS_FRAME_Y);
+    tte_write(text);
 }
 
 [[noreturn]] void draw_init_error_and_exit(void)
