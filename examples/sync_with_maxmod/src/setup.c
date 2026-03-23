@@ -182,6 +182,11 @@ bool setup_maxmod(void)
     return success;
 }
 
+void setup_waitstates(void)
+{
+    REG_WAITCNT = WS_STANDARD;
+}
+
 void setup_gfx(void)
 {
     REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
