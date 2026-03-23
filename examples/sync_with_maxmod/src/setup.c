@@ -13,8 +13,6 @@
 #include "core/player_types.h"
 extern mpl_layer_information mmLayerMain;
 
-#define IWRAM_BSS // IWRAM is the default location for .bss symbols
-#define EWRAM_BSS __attribute__((section(".sbss")))
 #define MEMORY_BARRIER asm volatile("" ::: "memory")
 
 #define MAXMOD_CHANNELS_COUNT 8
@@ -250,10 +248,10 @@ void setup_advgm(void)
 
 bool setup_maxmod(void)
 {
-    EWRAM_BSS static uint8_t module_channels_buffer[MM_SIZEOF_MODCH * MAXMOD_CHANNELS_COUNT];
-    EWRAM_BSS static uint8_t active_channels_buffer[MM_SIZEOF_ACTCH * MAXMOD_CHANNELS_COUNT];
-    EWRAM_BSS static uint8_t mixing_channels_buffer[MM_SIZEOF_MIXCH * MAXMOD_CHANNELS_COUNT];
-    alignas(4) IWRAM_BSS static uint8_t mixing_buffer[MAXMOD_MIX_LEN];
+    alignas(4) EWRAM_BSS static uint8_t module_channels_buffer[MM_SIZEOF_MODCH * MAXMOD_CHANNELS_COUNT];
+    alignas(4) EWRAM_BSS static uint8_t active_channels_buffer[MM_SIZEOF_ACTCH * MAXMOD_CHANNELS_COUNT];
+    alignas(4) EWRAM_BSS static uint8_t mixing_channels_buffer[MM_SIZEOF_MIXCH * MAXMOD_CHANNELS_COUNT];
+    alignas(4) static uint8_t mixing_buffer[MAXMOD_MIX_LEN];
     alignas(4) EWRAM_BSS static uint8_t wave_output_buffer[MAXMOD_MIX_LEN];
 
     mm_gba_system maxmod_configs = {
