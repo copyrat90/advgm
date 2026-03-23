@@ -12,3 +12,5 @@ void setup_irq(void);
 
 void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop);
 void sync_stop(void);
+
+bool sync_playing(void);

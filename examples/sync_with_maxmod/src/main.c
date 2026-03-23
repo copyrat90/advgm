@@ -36,7 +36,12 @@ int main(void)
 
         key_poll();
         if (key_hit(KEY_A))
-            sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
+        {
+            if (sync_playing())
+                sync_stop();
+            else
+                sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
+        }
 
         redraw_music_position_texts();
     }
