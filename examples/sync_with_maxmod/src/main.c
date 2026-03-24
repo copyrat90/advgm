@@ -15,6 +15,8 @@ static const bool MY_TUNE_LOOP = true;
 int main(void)
 {
     setup_waitstates();
+    sync_init();
+
     setup_gfx();
     draw_static_texts();
 

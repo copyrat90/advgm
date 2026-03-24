@@ -10,6 +10,8 @@ void setup_waitstates(void);
 void setup_gfx(void);
 void setup_irq(void);
 
+void sync_init(void);
+
 void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop);
 void sync_stop(void);
 
