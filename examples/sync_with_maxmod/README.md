@@ -3,6 +3,8 @@
 It is possible to synchronize advgm playback with [Maxmod](https://codeberg.org/blocksds/maxmod),
 so that you can use PCM channels along with the PSG channels for your music.
 
+[![](https://img.youtube.com/vi/1q3ZnINw7EY/hqdefault.jpg)](https://www.youtube.com/watch?v=1q3ZnINw7EY "Youtube video: GBA PSG+PCM audio juggling")
+
 
 ## Preparing music
 
