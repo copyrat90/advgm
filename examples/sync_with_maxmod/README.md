@@ -25,6 +25,8 @@ For the Maxmod tracker module, on the other hand, you would want to set it to th
 
 ## Synchronizing
 
+### Play / Stop
+
 In order to synchronize the playback, you need to use a *timer interrupt* to update the advgm playback, instead of updating it once per frame.\
 See `sync_play()`, `sync_vblank_interrupt_handler()` and `sync_timer1_interrupt_handler()` in [`src/sync.c`](src/sync.c) to know how to setup the timer.
 
@@ -39,8 +41,18 @@ Initially, Maxmod starts mixing the sample *without processing its first tick*, 
 
 How to calculate this is somewhat complicated, so just check out `sync_play()` in [`src/sync.c`](src/sync.c).
 
+
+### Pause / Resume
+
 If you also want to support pause/resume, you also need to consider the tick difference between advgm and Maxmod when the playback is paused.\
 See `sync_pause()`, `sync_resume()` and `sync_maxmod_tick_callback_handler()` in [`src/sync.c`](src/sync.c) for that.
+
+Actually, current `sync_pause()` and `sync_resume()` implementation is subtly broken.\
+I figured that if you repeatedly pause/resume, the resume position slightly desyncs over time.
+
+But you need to pause/resume in 7 frames for 3 hours to notice the discrepancy.\
+In my opinion, that's unnecessary to fix.
+
 
 ## License
 
