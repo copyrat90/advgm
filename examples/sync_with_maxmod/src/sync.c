@@ -19,10 +19,13 @@ extern mpl_layer_information mmLayerMain;
 static EWRAM_BSS struct synced_play_states
 {
     bool playing;
+    bool paused;
     bool loop;
 
     bool vblank_handled;
-    bool advgm_updated;
+    bool timer1_handled;
+
+    atomic_bool startup_delay_published;
 
     // Base timer value (quotient of cycles/64)
     uint16_t regular_tm_data;
@@ -31,7 +34,7 @@ static EWRAM_BSS struct synced_play_states
     uint16_t startup_tm_data;
 
     unsigned startup_vblank_delay_counter;
-    atomic_uint startup_vblank_delay_needed;
+    unsigned startup_vblank_delay_needed;
 
     // Accumulate the sub-tick of a 64Hz timer.
     //
@@ -42,11 +45,14 @@ static EWRAM_BSS struct synced_play_states
     // This is accumulated to `timer_accumulator` everytime the advgm playback is updated.
     unsigned timer_remainder;
 
+    int advgm_update_counter;
+    int maxmod_update_counter;
+
 } play_states;
 
 void sync_init(void)
 {
-    atomic_init(&play_states.startup_vblank_delay_needed, 0);
+    atomic_init(&play_states.startup_delay_published, false);
 }
 
 void sync_stop(void)
@@ -64,11 +70,18 @@ void sync_stop(void)
     advgm_stop();
 
     play_states.startup_vblank_delay_counter = 0;
+    play_states.paused = false;
     play_states.vblank_handled = false;
-    play_states.advgm_updated = false;
+    play_states.timer1_handled = false;
 
-    atomic_store_explicit(&play_states.startup_vblank_delay_needed, 0, memory_order_release);
+    play_states.advgm_update_counter = 0;
+    play_states.maxmod_update_counter = 0;
+
+    play_states.startup_vblank_delay_needed = 0;
+    atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
 }
+
+static void sync_start(void);
 
 void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
 {
@@ -89,7 +102,12 @@ void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
     play_states.playing = true;
     MEMORY_BARRIER;
 
-    // You need to fetch these after `mmStart()` call,
+    sync_start();
+}
+
+static void sync_start(void)
+{
+    // These are fetched after `mmStart()` call,
     // because you need to reference the currently playing module info.
     // But `vblank_interrupt_handler()` will be called, so you can have a race condition if you're not careful.
     //
@@ -102,6 +120,9 @@ void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
     if (samples_to_delay_on_startup < 0)
         samples_to_delay_on_startup = 0;
 
+    samples_to_delay_on_startup +=
+        (int)samples_per_tick * (play_states.advgm_update_counter - play_states.maxmod_update_counter);
+
     // Copied from `maxmod/source/gba/mixer.c`
     static const mm_hword mp_mixing_lengths[] = {
         136, 176, 224, 264,
@@ -112,11 +133,15 @@ void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
 
     const mm_hword mixlen = mp_mixing_lengths[SETUP_OPTIONS_MAXMOD_MIX_MODE];
 
+    // Don't forget the 2 more vblank delays!
+    samples_to_delay_on_startup += 2 * mixlen;
+    if (samples_to_delay_on_startup < 0)
+        samples_to_delay_on_startup = 0;
+
     const unsigned startup_delay_quotient = (unsigned)samples_to_delay_on_startup / mixlen;
     const unsigned startup_delay_remainder = (unsigned)samples_to_delay_on_startup % mixlen;
 
-    // Don't forget the 2 more vblanks!
-    const unsigned startup_vblank_delay_needed = 2 + startup_delay_quotient;
+    play_states.startup_vblank_delay_needed = startup_delay_quotient;
 
     // Reverse the Maxmod sample count calculation to obtain the timer value of the tempo.
     //
@@ -165,8 +190,60 @@ void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
     play_states.startup_tm_data = (uint16_t)timer_quotient;
     play_states.timer_accumulator = timer_remainder;
 
-    // Publish the `startup_vblank_delay_needed`
-    atomic_store_explicit(&play_states.startup_vblank_delay_needed, startup_vblank_delay_needed, memory_order_release);
+    // Publish the startup delay values.
+    atomic_store_explicit(&play_states.startup_delay_published, true, memory_order_release);
+}
+
+void sync_pause(void)
+{
+    if (play_states.paused)
+        return;
+
+    // Stop the timer1
+    REG_TM1CNT = 0;
+
+    MEMORY_BARRIER;
+    mmPause();
+    MEMORY_BARRIER;
+
+    // The next time playback is resumed,
+    // the sample position calculations assume that advgm is not fall behind too much.
+    //
+    // Ideally the advgm playback should be paused later when it catches up the Maxmod's,
+    // but that is too painful to manage. (e.g. How to deal with resume right after pause?)
+    // so we just fast-forward the playback here.
+    while (play_states.advgm_update_counter < play_states.maxmod_update_counter)
+    {
+        advgm_update();
+        ++play_states.advgm_update_counter;
+    }
+
+    MEMORY_BARRIER;
+    advgm_pause();
+
+    play_states.paused = true;
+}
+
+void sync_resume(void)
+{
+    if (!play_states.paused)
+        return;
+
+    play_states.startup_vblank_delay_counter = 0;
+    play_states.paused = false;
+    play_states.vblank_handled = false;
+    play_states.timer1_handled = false;
+
+    play_states.startup_vblank_delay_needed = 0;
+    atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
+
+    MEMORY_BARRIER;
+    advgm_resume();
+    MEMORY_BARRIER;
+    mmResume();
+    MEMORY_BARRIER;
+
+    sync_start();
 }
 
 bool sync_playing(void)
@@ -174,9 +251,14 @@ bool sync_playing(void)
     return play_states.playing;
 }
 
+bool sync_paused(void)
+{
+    return play_states.paused;
+}
+
 void sync_vblank_interrupt_handler(void)
 {
-    // Skips if not played with sync.
+    // Skips if not currently playing with sync.
     if (!play_states.playing)
         return;
 
@@ -186,17 +268,19 @@ void sync_vblank_interrupt_handler(void)
 
     // Checks if enough vblank has been passed or not.
     //
-    // `startup_vblank_delay_needed` might not be already set to valid value,
-    // so we need to check if it's valid (not-zero) to avoid race condition.
-    const unsigned startup_vblank_delay_needed =
-        atomic_load_explicit(&play_states.startup_vblank_delay_needed, memory_order_acquire);
-    if (startup_vblank_delay_needed == 0 || play_states.startup_vblank_delay_counter + 1 < startup_vblank_delay_needed)
+    // Startup delay values might not be set to valid values,
+    // so we need to check if they are valid to avoid race condition.
+    const bool startup_delay_published =
+        atomic_load_explicit(&play_states.startup_delay_published, memory_order_acquire);
+    if (!startup_delay_published ||
+        play_states.startup_vblank_delay_counter + 1 < play_states.startup_vblank_delay_needed)
     {
         ++play_states.startup_vblank_delay_counter;
         return;
     }
 
-    atomic_store_explicit(&play_states.startup_vblank_delay_needed, 0, memory_order_release);
+    play_states.startup_vblank_delay_needed = 0;
+    atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
 
     // Enough vblank waited, we'll now start the timer
     // (i.e. start the advgm update)
@@ -207,7 +291,7 @@ void sync_vblank_interrupt_handler(void)
         REG_TM1D = -(uint16_t)play_states.startup_tm_data;
     else
     {
-        play_states.advgm_updated = true;
+        play_states.timer1_handled = true;
         sync_timer1_interrupt_handler();
     }
 
@@ -233,11 +317,11 @@ void sync_timer1_interrupt_handler(void)
         REG_TM1D = -play_states.regular_tm_data;
     }
 
-    // If this was the first time advgm updated,
+    // If this was the first time advgm updated after play/resume,
     // the timer must be using old delay value, which is invalid now.
-    if (!play_states.advgm_updated)
+    if (!play_states.timer1_handled)
     {
-        play_states.advgm_updated = true;
+        play_states.timer1_handled = true;
 
         // Restart the timer to use `regular_tm_data` instead of `startup_tm_data`.
         REG_TM1CNT = 0;
@@ -248,4 +332,20 @@ void sync_timer1_interrupt_handler(void)
     MEMORY_BARRIER;
     const bool success = advgm_update();
     ((void)success);
+
+    ++play_states.advgm_update_counter;
+}
+
+mm_word sync_maxmod_tick_callback_handler(mm_word msg, mm_word)
+{
+    if (msg != MMCB_SONGTICK)
+        return 0;
+
+    // Skip if not played with sync.
+    if (!play_states.playing)
+        return 0;
+
+    ++play_states.maxmod_update_counter;
+
+    return 0;
 }

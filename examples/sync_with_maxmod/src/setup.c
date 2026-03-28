@@ -36,7 +36,10 @@ bool setup_maxmod(void)
 
     const bool success = mmInit(&maxmod_configs);
     if (success)
+    {
+        mmSetEventHandler(sync_maxmod_tick_callback_handler);
         mmSetVBlankHandler(sync_vblank_interrupt_handler);
+    }
 
     return success;
 }
