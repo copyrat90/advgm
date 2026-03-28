@@ -34,11 +34,13 @@ This is because Maxmod prepares a frame of audio for the next VBlank, and swaps 
 But as your game logic started the music, the buffer swapped on the first `mmVBlank()` callback has no audio mixed, because `mmFrame()` was never called yet to mix the samples.\
 So you need to wait for an additional VBlank, hence you need to wait for the second one.
 
-That's the basics, but actually *I lied*.\
+That's the basics, but actually there's more to it.\
 Initially, Maxmod starts mixing the sample *without processing its first tick*, so the actual audible playback is further delayed.
 
 How to calculate this is somewhat complicated, so just check out `sync_play()` in [`src/sync.c`](src/sync.c).
 
+If you also want to support pause/resume, you also need to consider the tick difference between advgm and Maxmod when the playback is paused.\
+See `sync_pause()`, `sync_resume()` and `sync_maxmod_tick_callback_handler()` in [`src/sync.c`](src/sync.c) for that.
 
 ## License
 
