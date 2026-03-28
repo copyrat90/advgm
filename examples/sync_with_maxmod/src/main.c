@@ -1,5 +1,6 @@
 #include "draw_texts.h"
 #include "setup.h"
+#include "sync.h"
 
 #include <maxmod.h>
 #include <tonc.h>

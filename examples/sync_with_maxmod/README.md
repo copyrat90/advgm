@@ -26,7 +26,7 @@ For the Maxmod tracker module, on the other hand, you would want to set it to th
 ## Synchronizing
 
 In order to synchronize the playback, you need to use a *timer interrupt* to update the advgm playback, instead of updating it once per frame.\
-See `sync_play()`, `vblank_interrupt_handler()` and `timer1_interrupt_handler()` in [`src/setup.c`](src/setup.c) to know how to setup the timer.
+See `sync_play()`, `sync_vblank_interrupt_handler()` and `sync_timer1_interrupt_handler()` in [`src/sync.c`](src/sync.c) to know how to setup the timer.
 
 To align the tunes properly, You need to start updating advgm playback on the *second* VBlank callback after a Maxmod playback has been started.\
 This is because Maxmod prepares a frame of audio for the next VBlank, and swaps the mixing buffer in VBlank to actually start playing it.
@@ -37,7 +37,7 @@ So you need to wait for an additional VBlank, hence you need to wait for the sec
 That's the basics, but actually *I lied*.\
 Initially, Maxmod starts mixing the sample *without processing its first tick*, so the actual audible playback is further delayed.
 
-How to calculate this is somewhat complicated, so just check out `sync_play()` in [`src/setup.c`](src/setup.c).
+How to calculate this is somewhat complicated, so just check out `sync_play()` in [`src/sync.c`](src/sync.c).
 
 
 ## License
