@@ -85,10 +85,10 @@ ALLFLAGS	:= -Wall -Wextra -g -gdwarf-4 -O2 \
 		-D__GBA__
 
 # C compiler flags
-CFLAGS		:= -std=gnu23
+CFLAGS		:= -std=gnu17
 
 # C++ compiler flags
-CXXFLAGS	:= -std=gnu++23 -fno-rtti -fno-exceptions
+CXXFLAGS	:= -std=gnu++20 -fno-rtti -fno-exceptions
 
 # Assembler flags (as passed to GCC)
 ASFLAGS		:= -x assembler-with-cpp

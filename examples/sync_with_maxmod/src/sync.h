@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mm_types.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 void sync_init(void);
