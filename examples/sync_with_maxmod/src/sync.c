@@ -199,6 +199,14 @@ void sync_pause(void)
     if (play_states.paused)
         return;
 
+    // You could be already waiting for the startup delay when paused right after resume.
+    // In that case, you should invalidate the startup delay first.
+    //
+    // It must be done before stopping timer, because VBlank interrupt might start a timer in any moment.
+    atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
+
+    MEMORY_BARRIER;
+
     // Stop the timer1
     REG_TM1CNT = 0;
 
