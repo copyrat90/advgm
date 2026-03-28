@@ -13,6 +13,18 @@ extern const unsigned char galactic_quest_mus_theme_c[];
 static const unsigned char* MY_TUNE_ADVGM = galactic_quest_mus_theme_c;
 static const bool MY_TUNE_LOOP = true;
 
+uint64_t s[2] = {3027351822319785405ULL, 7263045373434617570ULL};
+
+uint64_t xorshift128plus(void)
+{
+    uint64_t x = s[0];
+    uint64_t const y = s[1];
+    s[0] = y;
+    x ^= x << 23;                         // a
+    s[1] = x ^ y ^ (x >> 17) ^ (y >> 26); // b, c
+    return s[1] + y;
+}
+
 int main(void)
 {
     setup_waitstates();
@@ -33,35 +45,44 @@ int main(void)
     sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
     unsigned elapsed_frames = 0;
 
+    unsigned frames_to_pause_resume = 3;
+
     for (;;)
     {
         VBlankIntrWait();
 
         mmFrame();
 
-        key_poll();
-        // Stop on B press
-        if (key_hit(KEY_B))
-        {
-            elapsed_frames = 0;
-            sync_stop();
+        ++elapsed_frames;
 
-            redraw_elapsed_frames(elapsed_frames);
-        }
-        // Play/Pause/Resume on A press
-        if (key_hit(KEY_A))
+        if (elapsed_frames >= frames_to_pause_resume)
         {
-            if (!sync_playing())
-                sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
-            else if (sync_paused())
+            if (sync_paused())
                 sync_resume();
             else
                 sync_pause();
+
+            const uint64_t r = xorshift128plus();
+
+            if (r % 15 == 0)
+            {
+                // Test calling both pause and resume in a single frame
+                if (sync_paused())
+                    sync_resume();
+                else
+                    sync_pause();
+
+                frames_to_pause_resume = elapsed_frames + 1 + r % 14;
+            }
+            else
+            {
+                frames_to_pause_resume = elapsed_frames + r % 15;
+            }
         }
 
         redraw_music_position_texts();
 
         if (sync_playing() && !sync_paused())
-            redraw_elapsed_frames(elapsed_frames++);
+            redraw_elapsed_frames(elapsed_frames);
     }
 }
