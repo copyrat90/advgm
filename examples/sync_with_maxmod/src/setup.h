@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 void setup_advgm(void);
 bool setup_maxmod(void);
 

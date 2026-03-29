@@ -39,15 +39,29 @@ int main(void)
 
         mmFrame();
 
-        // Restart on A press
         key_poll();
-        if (key_hit(KEY_A))
+        // Stop on B press
+        if (key_hit(KEY_B))
         {
             elapsed_frames = 0;
-            sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
+            sync_stop();
+
+            redraw_elapsed_frames(elapsed_frames);
+        }
+        // Play/Pause/Resume on A press
+        if (key_hit(KEY_A))
+        {
+            if (!sync_playing())
+                sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
+            else if (sync_paused())
+                sync_resume();
+            else
+                sync_pause();
         }
 
         redraw_music_position_texts();
-        redraw_elapsed_frames(elapsed_frames++);
+
+        if (sync_playing() && !sync_paused())
+            redraw_elapsed_frames(elapsed_frames++);
     }
 }

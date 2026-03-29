@@ -25,6 +25,8 @@ For the Maxmod tracker module, on the other hand, you would want to set it to th
 
 ## Synchronizing
 
+### Play / Stop
+
 In order to synchronize the playback, you need to use a *timer interrupt* to update the advgm playback, instead of updating it once per frame.\
 See `sync_play()`, `sync_vblank_interrupt_handler()` and `sync_timer1_interrupt_handler()` in [`src/sync.c`](src/sync.c) to know how to setup the timer.
 
@@ -34,10 +36,22 @@ This is because Maxmod prepares a frame of audio for the next VBlank, and swaps 
 But as your game logic started the music, the buffer swapped on the first `mmVBlank()` callback has no audio mixed, because `mmFrame()` was never called yet to mix the samples.\
 So you need to wait for an additional VBlank, hence you need to wait for the second one.
 
-That's the basics, but actually *I lied*.\
+That's the basics, but actually there's more to it.\
 Initially, Maxmod starts mixing the sample *without processing its first tick*, so the actual audible playback is further delayed.
 
 How to calculate this is somewhat complicated, so just check out `sync_play()` in [`src/sync.c`](src/sync.c).
+
+
+### Pause / Resume
+
+If you also want to support pause/resume, you also need to consider the tick difference between advgm and Maxmod when the playback is paused.\
+See `sync_pause()`, `sync_resume()` and `sync_maxmod_tick_callback_handler()` in [`src/sync.c`](src/sync.c) for that.
+
+For less headaches, I just fast-forward the advgm playback in `sync_pause()` so that the tick is the same as Maxmod.
+
+> I figured there's a tiny chance to pause/resume to desync.\
+> This happened for me for pausing/resuming at the rate of random [1..15] frames for about 50 hours.\
+> But the probability is too small, so I'll leave it for now.
 
 
 ## License

@@ -16,11 +16,11 @@ void setup_advgm(void)
 
 bool setup_maxmod(void)
 {
-    alignas(4) EWRAM_BSS static uint8_t module_channels_buffer[MM_SIZEOF_MODCH * SETUP_OPTIONS_MAXMOD_CHANNELS_COUNT];
-    alignas(4) EWRAM_BSS static uint8_t active_channels_buffer[MM_SIZEOF_ACTCH * SETUP_OPTIONS_MAXMOD_CHANNELS_COUNT];
-    alignas(4) EWRAM_BSS static uint8_t mixing_channels_buffer[MM_SIZEOF_MIXCH * SETUP_OPTIONS_MAXMOD_CHANNELS_COUNT];
-    alignas(4) static uint8_t mixing_buffer[SETUP_OPTIONS_MAXMOD_MIX_LEN];
-    alignas(4) EWRAM_BSS static uint8_t wave_output_buffer[SETUP_OPTIONS_MAXMOD_MIX_LEN];
+    _Alignas(4) EWRAM_BSS static uint8_t module_channels_buffer[MM_SIZEOF_MODCH * SETUP_OPTIONS_MAXMOD_CHANNELS_COUNT];
+    _Alignas(4) EWRAM_BSS static uint8_t active_channels_buffer[MM_SIZEOF_ACTCH * SETUP_OPTIONS_MAXMOD_CHANNELS_COUNT];
+    _Alignas(4) EWRAM_BSS static uint8_t mixing_channels_buffer[MM_SIZEOF_MIXCH * SETUP_OPTIONS_MAXMOD_CHANNELS_COUNT];
+    _Alignas(4) static uint8_t mixing_buffer[SETUP_OPTIONS_MAXMOD_MIX_LEN];
+    _Alignas(4) EWRAM_BSS static uint8_t wave_output_buffer[SETUP_OPTIONS_MAXMOD_MIX_LEN];
 
     mm_gba_system maxmod_configs = {
         .mixing_mode = SETUP_OPTIONS_MAXMOD_MIX_MODE,
@@ -36,7 +36,10 @@ bool setup_maxmod(void)
 
     const bool success = mmInit(&maxmod_configs);
     if (success)
+    {
+        mmSetEventHandler(sync_maxmod_tick_callback_handler);
         mmSetVBlankHandler(sync_vblank_interrupt_handler);
+    }
 
     return success;
 }
