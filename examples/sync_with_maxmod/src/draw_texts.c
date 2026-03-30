@@ -42,11 +42,14 @@ void redraw_music_position_texts(void)
 {
     static int prev_maxmod_position = -1;
 
-    const int new_maxmod_position = mmGetPosition();
+    static volatile int new_maxmod_position; // 0x30013b8
+    static volatile uint32_t advgm_offset;   // 0x30013b4
+
+    new_maxmod_position = mmGetPosition();
 
     if (new_maxmod_position != prev_maxmod_position)
     {
-        const uint32_t advgm_offset = advgm_get_music_offset();
+        advgm_offset = advgm_get_music_offset();
 
         tte_erase_rect(TEXTS_LEFT_X, TEXTS_TOP_Y, TEXTS_TAB_X, TEXTS_TOP_Y + TEXT_HEIGHT);
         tte_erase_rect(TEXTS_LEFT_X, TEXTS_TOP_Y + 2 * TEXTS_LINE_HEIGHT, TEXTS_TAB_X,

@@ -13,7 +13,7 @@ extern const unsigned char galactic_quest_mus_theme_c[];
 static const unsigned char* MY_TUNE_ADVGM = galactic_quest_mus_theme_c;
 static const bool MY_TUNE_LOOP = true;
 
-uint64_t s[2] = {3027351822319785405ULL, 7263045373434617570ULL};
+uint64_t s[2] = {8805137846884825158ULL, 2168471854527417328ULL};
 
 uint64_t xorshift128plus(void)
 {
