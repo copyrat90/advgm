@@ -28,7 +28,7 @@ extern mpl_layer_information mmLayerMain;
         /* Clear previous IF to avoid race condition because of */ \
         /* the delay between timer overflow and timer interrupt */ \
         if (REG_IF & BIT(II_TIMER1)) \
-            REG_IF |= BIT(II_TIMER1); \
+            REG_IF = BIT(II_TIMER1); \
 \
         REG_IE |= BIT(II_TIMER1); \
     } while (false)
