@@ -44,6 +44,8 @@ static EWRAM_BSS struct synced_play_states
 
     atomic_bool startup_delay_published;
 
+    uint16_t snddmgcnt_on_pause;
+
     // Base timer value (quotient of cycles/64)
     uint16_t regular_tm_data;
 
@@ -247,6 +249,13 @@ void sync_pause(void)
     mmPause();
     MEMORY_BARRIER;
 
+    // Store this before muting all channels.
+    play_states.snddmgcnt_on_pause = REG_SNDDMGCNT;
+
+    // Mute all channels to avoid fast-forward audio pops.
+    REG_SNDDMGCNT &=
+        ~(SDMG_LSQR1 | SDMG_RSQR1 | SDMG_LSQR2 | SDMG_RSQR2 | SDMG_LWAVE | SDMG_RWAVE | SDMG_LNOISE | SDMG_RNOISE);
+
     // The next time playback is resumed,
     // the sample position calculations assume that advgm is not fall behind too much.
     //
@@ -285,6 +294,11 @@ void sync_resume(void)
 
     MEMORY_BARRIER;
     advgm_resume();
+    MEMORY_BARRIER;
+
+    // Unmute channels.
+    REG_SNDDMGCNT = play_states.snddmgcnt_on_pause;
+
     MEMORY_BARRIER;
     mmResume();
     MEMORY_BARRIER;
