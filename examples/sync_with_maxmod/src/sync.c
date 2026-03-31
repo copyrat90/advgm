@@ -388,12 +388,12 @@ void sync_timer1_interrupt_handler(void)
         // Stop the timer, currently running with the invalid delay.
         REG_TM1CNT = 0;
 
-        // TODO: Perhaps, we need to stall here to avoid
-        // the previous timer overflow triggering the re-enabled timer1 interrupt.
-        // So, stall for the maximum delay between those two?
-        //
         // I've moved `DISABLE_TIMER1_IRQ` and `ENABLE_TIMER1_IRQ` apart as far as possible,
-        // but it could still happen in theory?
+        // so that it's impossible for the previous timer overflow
+        // to trigger the re-enabled timer1 interrupt.
+        //
+        // I heard that it takes 2 instructions for that to happen,
+        // So I believe stalling here is not necessary.
 
         // Restart the timer to use `regular_tm_data` instead of `startup_tm_data`.
         REG_TM1CNT = TM_FREQ_64 | TM_IRQ | TM_ENABLE;
