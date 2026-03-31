@@ -16,6 +16,23 @@ extern mpl_layer_information mmLayerMain;
 
 #define MEMORY_BARRIER atomic_signal_fence(memory_order_seq_cst);
 
+#define DISABLE_TIMER1_IRQ \
+    do \
+    { \
+        REG_IE &= ~BIT(II_TIMER1); \
+    } while (false)
+
+#define ENABLE_TIMER1_IRQ \
+    do \
+    { \
+        /* Clear previous IF to avoid race condition because of */ \
+        /* the delay between timer overflow and timer interrupt */ \
+        if (REG_IF & BIT(II_TIMER1)) \
+            REG_IF = BIT(II_TIMER1); \
+\
+        REG_IE |= BIT(II_TIMER1); \
+    } while (false)
+
 static EWRAM_BSS struct synced_play_states
 {
     bool playing;
@@ -26,6 +43,8 @@ static EWRAM_BSS struct synced_play_states
     bool timer1_handled;
 
     atomic_bool startup_delay_published;
+
+    uint16_t snddmgcnt_on_pause;
 
     // Base timer value (quotient of cycles/64)
     uint16_t regular_tm_data;
@@ -57,6 +76,10 @@ void sync_init(void)
 
 void sync_stop(void)
 {
+    // Disable the timer1 interrupt beforehand
+    // to avoid race between timer overflow and timer interrupt.
+    DISABLE_TIMER1_IRQ;
+
     // Stop the timer1
     REG_TM1CNT = 0;
 
@@ -79,6 +102,9 @@ void sync_stop(void)
 
     play_states.startup_vblank_delay_needed = 0;
     atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
+
+    // Re-enable the timer1 interrupt again.
+    ENABLE_TIMER1_IRQ;
 }
 
 static void sync_start(void);
@@ -207,12 +233,28 @@ void sync_pause(void)
 
     MEMORY_BARRIER;
 
+    // Disable the timer1 interrupt beforehand.
+    //
+    // This is required, because there's a delay between the timer overflow and the interrupt fire.
+    // If you don't do this, it's possible to get the timer interrupt AFTER stopping the timer.
+    // Pretty nasty race condition, I learned it the hard way.
+    DISABLE_TIMER1_IRQ;
+
+    MEMORY_BARRIER;
+
     // Stop the timer1
     REG_TM1CNT = 0;
 
     MEMORY_BARRIER;
     mmPause();
     MEMORY_BARRIER;
+
+    // Store this before muting all channels.
+    play_states.snddmgcnt_on_pause = REG_SNDDMGCNT;
+
+    // Mute all channels to avoid fast-forward audio pops.
+    REG_SNDDMGCNT &=
+        ~(SDMG_LSQR1 | SDMG_RSQR1 | SDMG_LSQR2 | SDMG_RSQR2 | SDMG_LWAVE | SDMG_RWAVE | SDMG_LNOISE | SDMG_RNOISE);
 
     // The next time playback is resumed,
     // the sample position calculations assume that advgm is not fall behind too much.
@@ -230,6 +272,11 @@ void sync_pause(void)
     advgm_pause();
 
     play_states.paused = true;
+
+    MEMORY_BARRIER;
+
+    // Re-enable the timer1 interrupt again.
+    ENABLE_TIMER1_IRQ;
 }
 
 void sync_resume(void)
@@ -247,6 +294,11 @@ void sync_resume(void)
 
     MEMORY_BARRIER;
     advgm_resume();
+    MEMORY_BARRIER;
+
+    // Unmute channels.
+    REG_SNDDMGCNT = play_states.snddmgcnt_on_pause;
+
     MEMORY_BARRIER;
     mmResume();
     MEMORY_BARRIER;
@@ -329,19 +381,43 @@ void sync_timer1_interrupt_handler(void)
     // the timer must be using old delay value, which is invalid now.
     if (!play_states.timer1_handled)
     {
-        play_states.timer1_handled = true;
+        // Disable the timer1 interrupt beforehand
+        // to avoid race between timer overflow and timer interrupt.
+        DISABLE_TIMER1_IRQ;
+
+        // Stop the timer, currently running with the invalid delay.
+        REG_TM1CNT = 0;
+
+        // I've moved `DISABLE_TIMER1_IRQ` and `ENABLE_TIMER1_IRQ` apart as far as possible,
+        // so that it's impossible for the previous timer overflow
+        // to trigger the re-enabled timer1 interrupt.
+        //
+        // I heard that it takes 2 instructions for that to happen,
+        // So I believe stalling here is not necessary.
 
         // Restart the timer to use `regular_tm_data` instead of `startup_tm_data`.
-        REG_TM1CNT = 0;
         REG_TM1CNT = TM_FREQ_64 | TM_IRQ | TM_ENABLE;
+
+        MEMORY_BARRIER;
+    }
+
+    ++play_states.advgm_update_counter;
+
+    // The above if statement was seperated, to avoid previously described race condition.
+    if (!play_states.timer1_handled)
+    {
+        MEMORY_BARRIER;
+        play_states.timer1_handled = true;
+        MEMORY_BARRIER;
+
+        // Re-enable the timer1 interrupt.
+        ENABLE_TIMER1_IRQ;
     }
 
     // Update advgm playback last, for the restarted timer accuracy.
     MEMORY_BARRIER;
     const bool success = advgm_update();
     ((void)success);
-
-    ++play_states.advgm_update_counter;
 }
 
 mm_word sync_maxmod_tick_callback_handler(mm_word msg, mm_word)

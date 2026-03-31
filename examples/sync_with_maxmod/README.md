@@ -49,10 +49,6 @@ See `sync_pause()`, `sync_resume()` and `sync_maxmod_tick_callback_handler()` in
 
 For less headaches, I just fast-forward the advgm playback in `sync_pause()` so that the tick is the same as Maxmod.
 
-> I figured there's a tiny chance to pause/resume to desync.\
-> This happened for me for pausing/resuming at the rate of random [1..15] frames for about 50 hours.\
-> But the probability is too small, so I'll leave it for now.
-
 
 ## License
 
