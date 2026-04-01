@@ -44,10 +44,10 @@ BINARY_FILES	:=
 GRAPHICS	:=
 
 # Source files to compile
-SOURCES		:= src/*.c src/*.S maxmod/source/core/*.c maxmod/source/gba/*.c maxmod/source/gba/*.s
+SOURCES		:= src/*.c src/*.S maxmod/source/core/*.c maxmod/source/gba/*.c maxmod/source/gba/*.s libugba/source/gba/irq_handler.s libugba/source/gba/interrupts_gba.c
 
 # Include directories
-INCLUDES	:= src maxmod/include maxmod/source
+INCLUDES	:= src maxmod/include maxmod/source libugba/include
 
 #
 # Dependencies

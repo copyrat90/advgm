@@ -54,14 +54,3 @@ void setup_gfx(void)
     REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
     tte_init_chr4c_default(0, BG_CBB(0) | BG_SBB(31));
 }
-
-void setup_irq(void)
-{
-    irq_init(NULL);
-
-    irq_add(II_TIMER1, sync_timer1_interrupt_handler);
-    irq_enable(II_TIMER1);
-
-    irq_add(II_VBLANK, mmVBlank);
-    irq_enable(II_VBLANK);
-}

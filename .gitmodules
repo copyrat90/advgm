@@ -1,3 +1,6 @@
 [submodule "examples/sync_with_maxmod/maxmod"]
 	path = examples/sync_with_maxmod/maxmod
 	url = https://codeberg.org/blocksds/maxmod.git
+[submodule "examples/sync_with_maxmod/libugba"]
+	path = examples/sync_with_maxmod/libugba
+	url = https://codeberg.org/SkyLyrac/libugba.git

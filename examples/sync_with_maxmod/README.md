@@ -50,8 +50,18 @@ See `sync_pause()`, `sync_resume()` and `sync_maxmod_tick_callback_handler()` in
 For less headaches, I just fast-forward the advgm playback in `sync_pause()` so that the tick is the same as Maxmod.
 
 
-## License
+## Note
 
-The track used in this example is made by [potatoTeto](https://www.potatoteto.com/), and is licensed under the [CC BY-NC 4.0 International](licenses/galactic_quest_mus_theme_c.txt).
+It seems that **libtonc's interrupt handler misses interrupts** when 2 or more interrupts happen too close to each other.\
+We're using both VBlank and Timer1 interrupt, so this could happen (I learned this the hard way.)
 
-Maxmod is licensed under [its own permissive license](licenses/maxmod.txt).
+**Don't use libtonc's interrupt handler**, use other implementations instead.
+
+I'm using [libugba](https://codeberg.org/SkyLyrac/libugba)'s interrupt handler for this example.
+
+
+## Licenses
+
+* The track used in this example is made by [potatoTeto](https://www.potatoteto.com/), and is licensed under the [CC BY-NC 4.0 International](licenses/galactic_quest_mus_theme_c.txt).
+* [Maxmod](https://codeberg.org/blocksds/maxmod) is licensed under [its own permissive license](licenses/maxmod.txt).
+* [libugba](https://codeberg.org/SkyLyrac/libugba) is licensed under the [MIT license](licenses/libugba.txt).
