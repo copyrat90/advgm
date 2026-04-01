@@ -45,11 +45,14 @@ void am_redraw_music_position_texts(void)
 {
     static int prev_maxmod_position = -1;
 
-    const int new_maxmod_position = mmGetPosition();
+    static volatile int new_maxmod_position; // 0x30014a8
+    static volatile uint32_t advgm_offset;   // 0x30014a4
+
+    new_maxmod_position = mmGetPosition();
 
     if (new_maxmod_position != prev_maxmod_position)
     {
-        const uint32_t advgm_offset = advgm_get_music_offset();
+        advgm_offset = advgm_get_music_offset();
 
         tte_erase_rect(AM_TEXTS_LEFT_X, AM_TEXTS_TOP_Y, AM_TEXTS_TAB_X, AM_TEXTS_TOP_Y + AM_TEXT_HEIGHT);
         tte_erase_rect(AM_TEXTS_LEFT_X, AM_TEXTS_TOP_Y + 2 * AM_TEXTS_LINE_HEIGHT, AM_TEXTS_TAB_X,
