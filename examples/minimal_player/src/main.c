@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright 2026 copyrat90
+// SPDX-License-Identifier: 0BSD
+
 #include "advgm.h"
 
 #include <tonc.h>

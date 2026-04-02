@@ -1,0 +1,13 @@
+// SPDX-FileCopyrightText: Copyright 2026 copyrat90
+// SPDX-License-Identifier: 0BSD
+
+#ifndef AM_SETUP_OPTIONS_H
+#define AM_SETUP_OPTIONS_H
+
+#include <maxmod.h>
+
+#define AM_SETUP_OPTIONS_MAXMOD_CHANNELS_COUNT 16
+#define AM_SETUP_OPTIONS_MAXMOD_MIX_MODE MM_MIX_31KHZ
+#define AM_SETUP_OPTIONS_MAXMOD_MIX_LEN MM_MIXLEN_31KHZ
+
+#endif // AM_SETUP_OPTIONS_H

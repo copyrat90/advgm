@@ -1,6 +1,9 @@
-#include "sync.h"
+// SPDX-FileCopyrightText: Copyright 2026 copyrat90
+// SPDX-License-Identifier: 0BSD
 
-#include "setup_options.h"
+#include "am_sync.h"
+
+#include "am_setup_options.h"
 
 #include <advgm.h>
 #include <advgm_hardware.h>
@@ -14,15 +17,15 @@
 #include <core/player_types.h>
 extern mpl_layer_information mmLayerMain;
 
-#define MEMORY_BARRIER atomic_signal_fence(memory_order_seq_cst);
+#define AM_MEMORY_BARRIER atomic_signal_fence(memory_order_seq_cst);
 
-#define DISABLE_TIMER1_IRQ \
+#define AM_DISABLE_TIMER1_IRQ \
     do \
     { \
         ADVGM_REG_IE &= ~ADVGM_IRQF_TIMER1; \
     } while (false)
 
-#define ENABLE_TIMER1_IRQ \
+#define AM_ENABLE_TIMER1_IRQ \
     do \
     { \
         /* Clear previous IF to avoid race condition because of */ \
@@ -33,7 +36,7 @@ extern mpl_layer_information mmLayerMain;
         ADVGM_REG_IE |= ADVGM_IRQF_TIMER1; \
     } while (false)
 
-static ADVGM_EWRAM_BSS struct synced_play_states
+static ADVGM_EWRAM_BSS struct am_synced_play_states
 {
     bool playing;
     bool paused;
@@ -69,25 +72,25 @@ static ADVGM_EWRAM_BSS struct synced_play_states
 
 } play_states;
 
-void sync_init(void)
+void am_sync_init(void)
 {
     atomic_init(&play_states.startup_delay_published, false);
 }
 
-void sync_stop(void)
+void am_sync_stop(void)
 {
     // Disable the timer1 interrupt beforehand
     // to avoid race between timer overflow and timer interrupt.
-    DISABLE_TIMER1_IRQ;
+    AM_DISABLE_TIMER1_IRQ;
 
     // Stop the timer1
     ADVGM_REG_TM1CNT = ADVGM_TMxCNT_STOP;
 
     // Reset the playing flag ASAP so that the
     // vblank interrupt handler can't do weird things.
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
     play_states.playing = false;
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
 
     mmStop();
     advgm_stop();
@@ -104,14 +107,14 @@ void sync_stop(void)
     atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
 
     // Re-enable the timer1 interrupt again.
-    ENABLE_TIMER1_IRQ;
+    AM_ENABLE_TIMER1_IRQ;
 }
 
-static void sync_start(void);
+static void am_sync_start(void);
 
-void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
+void am_sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
 {
-    sync_stop();
+    am_sync_stop();
 
     play_states.loop = loop;
 
@@ -120,18 +123,18 @@ void sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop)
     // Note that the timer1 is not started yet, that's done in the delayed vblank callback.
     // Until then, advgm playback is never updated.
     advgm_play(advgm_music, loop);
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
     mmStart(maxmod_module_id, loop ? MM_PLAY_LOOP : MM_PLAY_ONCE);
 
     // Set the playing flag ASAP to not miss counting `startup_vblank_delay_counter` after `mmStart()`.
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
     play_states.playing = true;
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
 
-    sync_start();
+    am_sync_start();
 }
 
-static void sync_start(void)
+static void am_sync_start(void)
 {
     // These are fetched after `mmStart()` call,
     // because you need to reference the currently playing module info.
@@ -157,7 +160,7 @@ static void sync_start(void)
         // 18khz, 21khz, 27khz, 31khz
     };
 
-    const mm_hword mixlen = mp_mixing_lengths[SETUP_OPTIONS_MAXMOD_MIX_MODE];
+    const mm_hword mixlen = mp_mixing_lengths[AM_SETUP_OPTIONS_MAXMOD_MIX_MODE];
 
     // Don't forget the 2 more vblank delays!
     samples_to_delay_on_startup += 2 * mixlen;
@@ -191,7 +194,7 @@ static void sync_start(void)
         // 18khz, 21khz, 27khz, 31khz
     };
 
-    static const mm_word bpmdv = mp_bpm_divisors[SETUP_OPTIONS_MAXMOD_MIX_MODE];
+    static const mm_word bpmdv = mp_bpm_divisors[AM_SETUP_OPTIONS_MAXMOD_MIX_MODE];
 
     unsigned cycles = (unsigned)((1ULL << 23) * samples_per_tick * 5 / bpmdv);
 
@@ -220,7 +223,7 @@ static void sync_start(void)
     atomic_store_explicit(&play_states.startup_delay_published, true, memory_order_release);
 }
 
-void sync_pause(void)
+void am_sync_pause(void)
 {
     if (play_states.paused)
         return;
@@ -231,23 +234,23 @@ void sync_pause(void)
     // It must be done before stopping timer, because VBlank interrupt might start a timer in any moment.
     atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
 
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
 
     // Disable the timer1 interrupt beforehand.
     //
     // This is required, because there's a delay between the timer overflow and the interrupt fire.
     // If you don't do this, it's possible to get the timer interrupt AFTER stopping the timer.
     // Pretty nasty race condition, I learned it the hard way.
-    DISABLE_TIMER1_IRQ;
+    AM_DISABLE_TIMER1_IRQ;
 
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
 
     // Stop the timer1
     ADVGM_REG_TM1CNT = ADVGM_TMxCNT_STOP;
 
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
     mmPause();
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
 
     // Store this before muting all channels.
     play_states.snddmgcnt_on_pause = ADVGM_REG_SNDDMGCNT;
@@ -270,18 +273,18 @@ void sync_pause(void)
         ++play_states.advgm_update_counter;
     }
 
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
     advgm_pause();
 
     play_states.paused = true;
 
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
 
     // Re-enable the timer1 interrupt again.
-    ENABLE_TIMER1_IRQ;
+    AM_ENABLE_TIMER1_IRQ;
 }
 
-void sync_resume(void)
+void am_sync_resume(void)
 {
     if (!play_states.paused)
         return;
@@ -294,31 +297,31 @@ void sync_resume(void)
     play_states.startup_vblank_delay_needed = 0;
     atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
 
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
     advgm_resume();
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
 
     // Unmute channels.
     ADVGM_REG_SNDDMGCNT = play_states.snddmgcnt_on_pause;
 
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
     mmResume();
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
 
-    sync_start();
+    am_sync_start();
 }
 
-bool sync_playing(void)
+bool am_sync_playing(void)
 {
     return play_states.playing;
 }
 
-bool sync_paused(void)
+bool am_sync_paused(void)
 {
     return play_states.paused;
 }
 
-void sync_vblank_interrupt_handler(void)
+void am_sync_vblank_interrupt_handler(void)
 {
     // Skips if not currently playing with sync.
     if (!play_states.playing)
@@ -354,14 +357,14 @@ void sync_vblank_interrupt_handler(void)
     else
     {
         play_states.timer1_handled = true;
-        sync_timer1_interrupt_handler();
+        am_sync_timer1_interrupt_handler();
     }
 
     // Start the advgm timer.
     ADVGM_REG_TM1CNT = ADVGM_TMxCNT_PRESCALER_F_DIV_64 | ADVGM_TMxCNT_IRQ_ENABLE | ADVGM_TMxCNT_START;
 }
 
-void sync_timer1_interrupt_handler(void)
+void am_sync_timer1_interrupt_handler(void)
 {
     // Accumulate the sub-tick of the 64Hz timer
     play_states.timer_accumulator += play_states.timer_remainder;
@@ -385,12 +388,12 @@ void sync_timer1_interrupt_handler(void)
     {
         // Disable the timer1 interrupt beforehand
         // to avoid race between timer overflow and timer interrupt.
-        DISABLE_TIMER1_IRQ;
+        AM_DISABLE_TIMER1_IRQ;
 
         // Stop the timer, currently running with the invalid delay.
         ADVGM_REG_TM1CNT = ADVGM_TMxCNT_STOP;
 
-        // I've moved `DISABLE_TIMER1_IRQ` and `ENABLE_TIMER1_IRQ` apart as far as possible,
+        // I've moved `AM_DISABLE_TIMER1_IRQ` and `AM_ENABLE_TIMER1_IRQ` apart as far as possible,
         // so that it's impossible for the previous timer overflow
         // to trigger the re-enabled timer1 interrupt.
         //
@@ -400,7 +403,7 @@ void sync_timer1_interrupt_handler(void)
         // Restart the timer to use `regular_tm_data` instead of `startup_tm_data`.
         ADVGM_REG_TM1CNT = ADVGM_TMxCNT_PRESCALER_F_DIV_64 | ADVGM_TMxCNT_IRQ_ENABLE | ADVGM_TMxCNT_START;
 
-        MEMORY_BARRIER;
+        AM_MEMORY_BARRIER;
     }
 
     ++play_states.advgm_update_counter;
@@ -408,21 +411,21 @@ void sync_timer1_interrupt_handler(void)
     // The above if statement was seperated, to avoid previously described race condition.
     if (!play_states.timer1_handled)
     {
-        MEMORY_BARRIER;
+        AM_MEMORY_BARRIER;
         play_states.timer1_handled = true;
-        MEMORY_BARRIER;
+        AM_MEMORY_BARRIER;
 
         // Re-enable the timer1 interrupt.
-        ENABLE_TIMER1_IRQ;
+        AM_ENABLE_TIMER1_IRQ;
     }
 
     // Update advgm playback last, for the restarted timer accuracy.
-    MEMORY_BARRIER;
+    AM_MEMORY_BARRIER;
     const bool success = advgm_update();
     ((void)success);
 }
 
-mm_word sync_maxmod_tick_callback_handler(mm_word msg, mm_word)
+mm_word am_sync_maxmod_tick_callback_handler(mm_word msg, mm_word)
 {
     if (msg != MMCB_SONGTICK)
         return 0;

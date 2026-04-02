@@ -1,6 +1,9 @@
-#include "draw_texts.h"
-#include "setup.h"
-#include "sync.h"
+// SPDX-FileCopyrightText: Copyright 2026 copyrat90
+// SPDX-License-Identifier: 0BSD
+
+#include "am_draw_texts.h"
+#include "am_setup.h"
+#include "am_sync.h"
 
 #include <maxmod.h>
 #include <tonc.h>
@@ -15,22 +18,22 @@ static const bool MY_TUNE_LOOP = true;
 
 int main(void)
 {
-    setup_waitstates();
-    sync_init();
+    am_setup_waitstates();
+    am_sync_init();
 
-    setup_gfx();
-    draw_static_texts();
+    am_setup_gfx();
+    am_draw_static_texts();
 
-    setup_irq();
+    am_setup_irq();
     VBlankIntrWait();
 
-    if (!setup_maxmod())
-        draw_init_error_and_exit();
-    setup_advgm();
+    if (!am_setup_maxmod())
+        am_draw_init_error_and_exit();
+    am_setup_advgm();
 
     VBlankIntrWait();
 
-    sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
+    am_sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
     unsigned elapsed_frames = 0;
 
     for (;;)
@@ -44,24 +47,24 @@ int main(void)
         if (key_hit(KEY_B))
         {
             elapsed_frames = 0;
-            sync_stop();
+            am_sync_stop();
 
-            redraw_elapsed_frames(elapsed_frames);
+            am_redraw_elapsed_frames(elapsed_frames);
         }
         // Play/Pause/Resume on A press
         if (key_hit(KEY_A))
         {
-            if (!sync_playing())
-                sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
-            else if (sync_paused())
-                sync_resume();
+            if (!am_sync_playing())
+                am_sync_play(MY_TUNE_MAXMOD, MY_TUNE_ADVGM, MY_TUNE_LOOP);
+            else if (am_sync_paused())
+                am_sync_resume();
             else
-                sync_pause();
+                am_sync_pause();
         }
 
-        redraw_music_position_texts();
+        am_redraw_music_position_texts();
 
-        if (sync_playing() && !sync_paused())
-            redraw_elapsed_frames(elapsed_frames++);
+        if (am_sync_playing() && !am_sync_paused())
+            am_redraw_elapsed_frames(elapsed_frames++);
     }
 }
