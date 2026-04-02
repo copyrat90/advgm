@@ -3,9 +3,9 @@
 #include "setup_options.h"
 
 #include <advgm.h>
+#include <advgm_hardware.h>
 #include <maxmod.h>
 #include <mm_mas.h>
-#include <tonc.h>
 
 #include <stdatomic.h>
 #include <stdint.h>
@@ -19,7 +19,7 @@ extern mpl_layer_information mmLayerMain;
 #define DISABLE_TIMER1_IRQ \
     do \
     { \
-        REG_IE &= ~BIT(II_TIMER1); \
+        ADVGM_REG_IE &= ~ADVGM_IRQF_TIMER1; \
     } while (false)
 
 #define ENABLE_TIMER1_IRQ \
@@ -27,13 +27,13 @@ extern mpl_layer_information mmLayerMain;
     { \
         /* Clear previous IF to avoid race condition because of */ \
         /* the delay between timer overflow and timer interrupt */ \
-        if (REG_IF & BIT(II_TIMER1)) \
-            REG_IF = BIT(II_TIMER1); \
+        if (ADVGM_REG_IF & ADVGM_IRQF_TIMER1) \
+            ADVGM_REG_IF = ADVGM_IRQF_TIMER1; \
 \
-        REG_IE |= BIT(II_TIMER1); \
+        ADVGM_REG_IE |= ADVGM_IRQF_TIMER1; \
     } while (false)
 
-static EWRAM_BSS struct synced_play_states
+static ADVGM_EWRAM_BSS struct synced_play_states
 {
     bool playing;
     bool paused;
@@ -81,7 +81,7 @@ void sync_stop(void)
     DISABLE_TIMER1_IRQ;
 
     // Stop the timer1
-    REG_TM1CNT = 0;
+    ADVGM_REG_TM1CNT = ADVGM_TMxCNT_STOP;
 
     // Reset the playing flag ASAP so that the
     // vblank interrupt handler can't do weird things.
@@ -243,18 +243,20 @@ void sync_pause(void)
     MEMORY_BARRIER;
 
     // Stop the timer1
-    REG_TM1CNT = 0;
+    ADVGM_REG_TM1CNT = ADVGM_TMxCNT_STOP;
 
     MEMORY_BARRIER;
     mmPause();
     MEMORY_BARRIER;
 
     // Store this before muting all channels.
-    play_states.snddmgcnt_on_pause = REG_SNDDMGCNT;
+    play_states.snddmgcnt_on_pause = ADVGM_REG_SNDDMGCNT;
 
     // Mute all channels to avoid fast-forward audio pops.
-    REG_SNDDMGCNT &=
-        ~(SDMG_LSQR1 | SDMG_RSQR1 | SDMG_LSQR2 | SDMG_RSQR2 | SDMG_LWAVE | SDMG_RWAVE | SDMG_LNOISE | SDMG_RNOISE);
+    ADVGM_REG_SNDDMGCNT &=
+        ~(ADVGM_SNDDMGCNT_PSG_1_ENABLE_LEFT | ADVGM_SNDDMGCNT_PSG_1_ENABLE_RIGHT | ADVGM_SNDDMGCNT_PSG_2_ENABLE_LEFT |
+          ADVGM_SNDDMGCNT_PSG_2_ENABLE_RIGHT | ADVGM_SNDDMGCNT_PSG_3_ENABLE_LEFT | ADVGM_SNDDMGCNT_PSG_3_ENABLE_RIGHT |
+          ADVGM_SNDDMGCNT_PSG_4_ENABLE_LEFT | ADVGM_SNDDMGCNT_PSG_4_ENABLE_RIGHT);
 
     // The next time playback is resumed,
     // the sample position calculations assume that advgm is not fall behind too much.
@@ -297,7 +299,7 @@ void sync_resume(void)
     MEMORY_BARRIER;
 
     // Unmute channels.
-    REG_SNDDMGCNT = play_states.snddmgcnt_on_pause;
+    ADVGM_REG_SNDDMGCNT = play_states.snddmgcnt_on_pause;
 
     MEMORY_BARRIER;
     mmResume();
@@ -348,7 +350,7 @@ void sync_vblank_interrupt_handler(void)
 
     // Additionally delay the playback considering Maxmod startup delay.
     if (play_states.startup_tm_data != 0)
-        REG_TM1D = -(uint16_t)play_states.startup_tm_data;
+        ADVGM_REG_TM1D = -(uint16_t)play_states.startup_tm_data;
     else
     {
         play_states.timer1_handled = true;
@@ -356,7 +358,7 @@ void sync_vblank_interrupt_handler(void)
     }
 
     // Start the advgm timer.
-    REG_TM1CNT = TM_FREQ_64 | TM_IRQ | TM_ENABLE;
+    ADVGM_REG_TM1CNT = ADVGM_TMxCNT_PRESCALER_F_DIV_64 | ADVGM_TMxCNT_IRQ_ENABLE | ADVGM_TMxCNT_START;
 }
 
 void sync_timer1_interrupt_handler(void)
@@ -370,11 +372,11 @@ void sync_timer1_interrupt_handler(void)
         play_states.timer_accumulator -= 8;
 
         // Wait an additional tick
-        REG_TM1D = -(play_states.regular_tm_data + 1);
+        ADVGM_REG_TM1D = -(play_states.regular_tm_data + 1);
     }
     else
     {
-        REG_TM1D = -play_states.regular_tm_data;
+        ADVGM_REG_TM1D = -play_states.regular_tm_data;
     }
 
     // If this was the first time advgm updated after play/resume,
@@ -386,7 +388,7 @@ void sync_timer1_interrupt_handler(void)
         DISABLE_TIMER1_IRQ;
 
         // Stop the timer, currently running with the invalid delay.
-        REG_TM1CNT = 0;
+        ADVGM_REG_TM1CNT = ADVGM_TMxCNT_STOP;
 
         // I've moved `DISABLE_TIMER1_IRQ` and `ENABLE_TIMER1_IRQ` apart as far as possible,
         // so that it's impossible for the previous timer overflow
@@ -396,7 +398,7 @@ void sync_timer1_interrupt_handler(void)
         // So I believe stalling here is not necessary.
 
         // Restart the timer to use `regular_tm_data` instead of `startup_tm_data`.
-        REG_TM1CNT = TM_FREQ_64 | TM_IRQ | TM_ENABLE;
+        ADVGM_REG_TM1CNT = ADVGM_TMxCNT_PRESCALER_F_DIV_64 | ADVGM_TMxCNT_IRQ_ENABLE | ADVGM_TMxCNT_START;
 
         MEMORY_BARRIER;
     }
