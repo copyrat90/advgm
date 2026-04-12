@@ -60,6 +60,17 @@ We're using both VBlank and Timer1 interrupt, so this could happen (I learned th
 I'm using [libugba](https://codeberg.org/SkyLyrac/libugba)'s interrupt handler for this example.
 
 
+## Known Bug
+
+If you play a music at a *super slow* tempo, the advgm playback slowly falls behind with the Maxmod playback.
+
+But you can only see this bug when you slow down the music with `mmSetModuleTempo()` for an already pretty slow music.\
+For example, slowing down the 41 bpm music to 0.5x speed (i.e. `mmSetModuleTempo(0x200)`), so that it's 20.5 bpm, would cause this bug.
+
+But I don't think there's a practical use for such a slow tempo, so I'm leaving the bug for now.\
+And it takes at least a million of elapsed frames to notice the discrepancy, anyways.
+
+
 ## Licenses
 
 * The track used in this example is made by [potatoTeto](https://www.potatoteto.com/), and is licensed under the [CC BY-NC 4.0 International](licenses/galactic_quest_mus_theme_c.txt).
