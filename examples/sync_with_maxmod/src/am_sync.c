@@ -116,6 +116,7 @@ void am_sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loo
 {
     am_sync_stop();
 
+    play_states.playing = true;
     play_states.loop = loop;
 
     // Starts the playback.
@@ -125,11 +126,6 @@ void am_sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loo
     advgm_play(advgm_music, loop);
     AM_MEMORY_BARRIER;
     mmStart(maxmod_module_id, loop ? MM_PLAY_LOOP : MM_PLAY_ONCE);
-
-    // Set the playing flag ASAP to not miss counting `startup_vblank_delay_counter` after `mmStart()`.
-    AM_MEMORY_BARRIER;
-    play_states.playing = true;
-    AM_MEMORY_BARRIER;
 
     am_sync_start();
 }
@@ -307,7 +303,7 @@ bool am_sync_paused(void)
 void am_sync_vblank_interrupt_handler(void)
 {
     // Skips if not currently playing with sync.
-    if (!play_states.playing)
+    if (!play_states.playing || !mmLayerMain.isplaying)
         return;
 
     // Skips if already started the advgm update.
