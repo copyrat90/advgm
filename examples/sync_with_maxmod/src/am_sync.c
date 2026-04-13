@@ -3,8 +3,6 @@
 
 #include "am_sync.h"
 
-#include "am_setup_options.h"
-
 #include <advgm.h>
 #include <advgm_hardware.h>
 #include <maxmod.h>
@@ -13,9 +11,11 @@
 #include <stdatomic.h>
 #include <stdint.h>
 
-// To get the sample count, you need to reference the hidden `mmLayerMain` directly.
+// To calculate the tempo, you need to reference the hidden maxmod fields directly.
 #include <core/player_types.h>
 extern mpl_layer_information mmLayerMain;
+extern mm_word mm_mixlen;
+extern mm_word mm_bpmdv;
 
 #define AM_MEMORY_BARRIER atomic_signal_fence(memory_order_seq_cst);
 
@@ -152,15 +152,8 @@ static void am_sync_start(void)
     samples_to_delay_on_startup +=
         (int)samples_per_tick * (play_states.advgm_update_counter - play_states.maxmod_update_counter);
 
-    // Copied from `maxmod/source/gba/mixer.c`
-    static const mm_hword mp_mixing_lengths[] = {
-        136, 176, 224, 264,
-        //  8khz, 10khz, 13khz, 16khz,
-        304, 352, 448, 528
-        // 18khz, 21khz, 27khz, 31khz
-    };
-
-    const mm_hword mixlen = mp_mixing_lengths[AM_SETUP_OPTIONS_MAXMOD_MIX_MODE];
+    // Reference the mixing length from maxmod.
+    const mm_word mixlen = mm_mixlen;
 
     // Don't forget the 2 more vblank delays!
     samples_to_delay_on_startup += 2 * mixlen;
@@ -174,9 +167,6 @@ static void am_sync_start(void)
 
     // Reverse the Maxmod sample count calculation to obtain the timer value of the tempo.
     //
-    // To know `mm_bpmdv` for specific Maxmod mixing rate,
-    // I copied the `mp_bpm_divisors` LUT from `mmMixerInit()` in `gba/mixer.c`
-    //
     // `MM_MAIN` layer calculations for `mpp_setbpm()` in `maxmod/source/core/mas.c`:
     //   0. layer_info->tickrate := (mm_bpmdv / raw_bpm) & ~1
     //   1. tempo := mm_bpmdv / layer_info->tickrate
@@ -187,14 +177,7 @@ static void am_sync_start(void)
     //
     // Maxmod allows the tempo from 16 to 510 (considering `mm_mastertempo` multiplier),
     // So the `REG_TM1D` value for 64Hz timer is between -40947.5 and -1226.625
-    static const mm_word mp_bpm_divisors[] = {
-        20302, 26280, 33447, 39420,
-        // 8khz, 10khz, 13khz, 16khz,
-        45393, 52560, 66895, 78840
-        // 18khz, 21khz, 27khz, 31khz
-    };
-
-    static const mm_word bpmdv = mp_bpm_divisors[AM_SETUP_OPTIONS_MAXMOD_MIX_MODE];
+    const mm_word bpmdv = mm_bpmdv;
 
     unsigned cycles = (unsigned)((1ULL << 23) * samples_per_tick * 5 / bpmdv);
 
