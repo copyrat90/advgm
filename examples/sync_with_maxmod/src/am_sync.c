@@ -404,9 +404,9 @@ void am_sync_timer1_interrupt_handler(void)
     ((void)success);
 }
 
-mm_word am_sync_maxmod_tick_callback_handler(mm_word msg, mm_word)
+mm_word am_sync_maxmod_tick_callback_handler(mm_word msg, mm_word param)
 {
-    if (msg != MMCB_SONGTICK)
+    if (msg != MMCB_SONGTICK || (param & 0xFF) != MM_MAIN)
         return 0;
 
     // Skip if not played with sync.
