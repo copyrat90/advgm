@@ -8,7 +8,6 @@
 #include <maxmod.h>
 #include <mm_mas.h>
 
-#include <stdatomic.h>
 #include <stdint.h>
 
 // To calculate the tempo, you need to reference the hidden maxmod fields directly.
@@ -17,7 +16,7 @@ extern mpl_layer_information mmLayerMain;
 extern mm_word mm_mixlen;
 extern mm_word mm_bpmdv;
 
-#define AM_MEMORY_BARRIER atomic_signal_fence(memory_order_seq_cst);
+#define AM_MEMORY_BARRIER asm volatile("" ::: "memory")
 
 #define AM_DISABLE_TIMER1_IRQ \
     do \
@@ -45,7 +44,7 @@ static ADVGM_EWRAM_BSS struct am_synced_play_states
     bool vblank_handled;
     bool timer1_handled;
 
-    atomic_bool startup_delay_published;
+    bool startup_delay_published;
 
     uint16_t snddmgcnt_on_pause;
 
@@ -71,11 +70,6 @@ static ADVGM_EWRAM_BSS struct am_synced_play_states
     int maxmod_update_counter;
 
 } play_states;
-
-void am_sync_init(void)
-{
-    atomic_init(&play_states.startup_delay_published, false);
-}
 
 void am_sync_stop(void)
 {
@@ -104,7 +98,8 @@ void am_sync_stop(void)
     play_states.maxmod_update_counter = 0;
 
     play_states.startup_vblank_delay_needed = 0;
-    atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
+    AM_MEMORY_BARRIER;
+    play_states.startup_delay_published = false;
 
     // Re-enable the timer1 interrupt again.
     AM_ENABLE_TIMER1_IRQ;
@@ -199,7 +194,8 @@ static void am_sync_start(void)
     play_states.timer_accumulator = timer_remainder;
 
     // Publish the startup delay values.
-    atomic_store_explicit(&play_states.startup_delay_published, true, memory_order_release);
+    AM_MEMORY_BARRIER;
+    play_states.startup_delay_published = true;
 }
 
 void am_sync_pause(void)
@@ -211,7 +207,8 @@ void am_sync_pause(void)
     // In that case, you should invalidate the startup delay first.
     //
     // It must be done before stopping timer, because VBlank interrupt might start a timer in any moment.
-    atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
+    AM_MEMORY_BARRIER;
+    play_states.startup_delay_published = false;
 
     AM_MEMORY_BARRIER;
 
@@ -274,7 +271,8 @@ void am_sync_resume(void)
     play_states.timer1_handled = false;
 
     play_states.startup_vblank_delay_needed = 0;
-    atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
+    AM_MEMORY_BARRIER;
+    play_states.startup_delay_published = false;
 
     AM_MEMORY_BARRIER;
     advgm_resume();
@@ -314,8 +312,8 @@ void am_sync_vblank_interrupt_handler(void)
     //
     // Startup delay values might not be set to valid values,
     // so we need to check if they are valid to avoid race condition.
-    const bool startup_delay_published =
-        atomic_load_explicit(&play_states.startup_delay_published, memory_order_acquire);
+    const bool startup_delay_published = play_states.startup_delay_published;
+    AM_MEMORY_BARRIER;
     if (!startup_delay_published ||
         play_states.startup_vblank_delay_counter + 1 < play_states.startup_vblank_delay_needed)
     {
@@ -324,7 +322,8 @@ void am_sync_vblank_interrupt_handler(void)
     }
 
     play_states.startup_vblank_delay_needed = 0;
-    atomic_store_explicit(&play_states.startup_delay_published, false, memory_order_release);
+    AM_MEMORY_BARRIER;
+    play_states.startup_delay_published = false;
 
     // Enough vblank waited, we'll now start the timer
     // (i.e. start the advgm update)

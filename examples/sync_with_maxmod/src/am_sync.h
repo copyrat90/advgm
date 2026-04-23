@@ -13,8 +13,6 @@ extern "C"
 {
 #endif
 
-void am_sync_init(void);
-
 void am_sync_play(mm_word maxmod_module_id, const uint8_t* advgm_music, bool loop);
 void am_sync_stop(void);
 

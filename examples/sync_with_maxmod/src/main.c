@@ -19,7 +19,6 @@ static const bool MY_TUNE_LOOP = true;
 int main(void)
 {
     am_setup_waitstates();
-    am_sync_init();
 
     am_setup_gfx();
     am_draw_static_texts();
