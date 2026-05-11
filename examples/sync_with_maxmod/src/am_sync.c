@@ -290,7 +290,7 @@ void am_sync_resume(void)
 
 bool am_sync_playing(void)
 {
-    return play_states.playing;
+    return play_states.paused || mmActive();
 }
 
 bool am_sync_paused(void)
