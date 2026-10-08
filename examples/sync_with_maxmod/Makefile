@@ -82,7 +82,8 @@ ALLFLAGS	:= -Wall -Wextra -g -gdwarf-4 -O2 \
 		-ffunction-sections -fdata-sections \
 		-masm-syntax-unified \
 		-D_DEFAULT_SOURCE \
-		-D__GBA__
+		-D__GBA__ \
+		-DMM_MMUTIL_DEVKITPRO_COMPAT
 
 # C compiler flags
 CFLAGS		:= -std=gnu17
